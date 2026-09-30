@@ -24,19 +24,25 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
 
-      - name: Accept licenses
+      - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
       - name: Build APK
-        working-directory: project
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+        working-directory: project/ghest_yar
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: GhestYar-APK
-          path: project/**/build/outputs/apk/debug/*.apk
+          path: project/ghest_yar/app/build/outputs/apk/debug/*.apk

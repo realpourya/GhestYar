@@ -13,7 +13,7 @@ jobs:
 
       - name: Extract project
         run: |
-          unzip -q GhestYar-Android-Project.zip -d project
+          unzip -q GhestYar-Android-Project-v2.zip -d project
 
       - name: Setup Java
         uses: actions/setup-java@v4

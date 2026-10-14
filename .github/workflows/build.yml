@@ -24,12 +24,6 @@ jobs:
             -o -name settings.gradle.kts \
           \) -print
 
-          echo "=== Searching for Android app ==="
-          find project -type f \( \
-            -path '*/app/build.gradle' \
-            -o -path '*/app/build.gradle.kts' \
-          \) -print
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -41,7 +35,7 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Build APK
+      - name: Enable AndroidX
         run: |
           set -e
 
@@ -51,22 +45,38 @@ jobs:
           \) -print -quit)
 
           if [ -z "$SETTINGS_FILE" ]; then
-            echo "ERROR: Gradle settings file not found."
+            echo "ERROR: settings.gradle not found"
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+          PROPERTIES_FILE="$PROJECT_DIR/gradle.properties"
 
-          echo "Gradle project directory: $PROJECT_DIR"
+          touch "$PROPERTIES_FILE"
 
-          if [ ! -d "$PROJECT_DIR/app" ]; then
-            echo "ERROR: app directory not found in $PROJECT_DIR"
-            find "$PROJECT_DIR" -maxdepth 3 -type d -print
-            exit 1
+          if grep -q '^[[:space:]]*android.useAndroidX[[:space:]]*=' "$PROPERTIES_FILE"; then
+            sed -i 's/^[[:space:]]*android\.useAndroidX[[:space:]]*=.*/android.useAndroidX=true/' "$PROPERTIES_FILE"
+          else
+            echo 'android.useAndroidX=true' >> "$PROPERTIES_FILE"
           fi
 
-          cd "$PROJECT_DIR"
-          gradle --no-daemon assembleDebug
+          echo "AndroidX enabled in $PROPERTIES_FILE"
+          cat "$PROPERTIES_FILE"
+
+      - name: Build APK
+        run: |
+          set -e
+
+          SETTINGS_FILE=$(find project -type f \( \
+            -name settings.gradle \
+            -o -name settings.gradle.kts \
+          \) -print -quit)
+
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+
+          echo "Building project in: $PROJECT_DIR"
+
+          gradle -p "$PROJECT_DIR" --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -74,3 +84,4 @@ jobs:
           name: GhestYar-APK
           path: project/**/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+          

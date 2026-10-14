@@ -27,7 +27,7 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build APK
-        working-directory: project/ghest_yar
+      
         run: gradle assembleDebug
 
       - name: Upload APK

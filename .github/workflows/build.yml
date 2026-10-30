@@ -64,24 +64,18 @@ jobs:
           path = Path(sys.argv[1])
           source = path.read_text(encoding="utf-8")
 
-          # The uploaded v3 source accidentally contains a real line break
-          # between two Java quotes in the installment status TextView.
-          broken = '"' + chr(10) + '" + (isPaid ?'
-          fixed = '"\\n" + (isPaid ?'
+          # Replace an actual newline placed between Java string quotes
+          # with the two-character Java escape sequence backslash+n.
+          broken = '"' + chr(10) + '"'
+          fixed = '"' + chr(92) + 'n' + '"'
+          count = source.count(broken)
 
-          if broken in source:
-              source = source.replace(broken, fixed, 1)
+          if count:
+              source = source.replace(broken, fixed)
               path.write_text(source, encoding="utf-8")
-              print("SUCCESS: repaired malformed Java string literal.")
-          elif fixed in source:
-              print("SUCCESS: Java string literal is already valid.")
+              print(f"SUCCESS: repaired {count} malformed Java string newline(s).")
           else:
-              marker = "isPaid ?"
-              pos = source.find(marker)
-              if pos >= 0:
-                  print("Installment status source context:")
-                  print(repr(source[max(0, pos-100):pos+100]))
-              raise SystemExit("Could not locate expected installment status string; stopping with diagnostic.")
+              print("No quote-newline-quote sequence found; source left unchanged.")
           PY
 
       - name: Setup Java

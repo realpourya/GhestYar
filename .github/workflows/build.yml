@@ -4,60 +4,77 @@ name: Build APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract project
+      - name: Check and extract project
         run: |
           set -e
+
+          ZIP_FILE="GhestYar-v2.5-rial-overdue-reminder.zip"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "ERROR: Project ZIP not found: $ZIP_FILE"
+            echo "Available ZIP files:"
+            find . -maxdepth 2 -name "*.zip" -print
+            exit 1
+          fi
+
           mkdir -p project
-          unzip -q GhestYar-v2.5-rial-overdue-reminder.zip -d project
+          unzip -q "$ZIP_FILE" -d project
 
-          # Fix reminder method calls to match the source method signature.
-          MAIN_FILE=$(find project -name MainActivity.java -print -quit)
-          sed -i 's/scheduleReminder(am,x,due,false,false,year,month,x.day);/scheduleReminder(am,x,due,false,year,month,x.day);/' "$MAIN_FILE"
-          sed -i 's/scheduleReminder(am,x,dayBefore,true,false,year,month,x.day);/scheduleReminder(am,x,dayBefore,true,year,month,x.day);/' "$MAIN_FILE"
-          sed -i 's/scheduleReminder(am,x,overdue,false,true,year,month,x.day);/scheduleReminder(am,x,overdue,false,year,month,x.day);/' "$MAIN_FILE"
+          SETTINGS_FILE=$(find project -type f \( \
+            -name "settings.gradle" \
+            -o -name "settings.gradle.kts" \
+          \) -print -quit)
 
-          echo "=== Searching for Gradle project ==="
-          find project -type f \( \
-            -name settings.gradle \
-            -o -name settings.gradle.kts \
-          \) -print
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: Gradle settings file not found."
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+          MAIN_FILE=$(find "$PROJECT_DIR" -name "MainActivity.java" -print -quit)
+
+          if [ -z "$MAIN_FILE" ]; then
+            echo "ERROR: MainActivity.java not found."
+            exit 1
+          fi
+
+          echo "Project directory: $PROJECT_DIR"
+          echo "MainActivity: $MAIN_FILE"
+
+          echo "Checking reminder code..."
+          grep -n -E "scheduleReminder|reminderRequestCode" "$MAIN_FILE" || true
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: "8.7"
 
       - name: Enable AndroidX
         run: |
           set -e
 
-          SETTINGS_FILE=$(find project -type f \( \
-            -name settings.gradle \
-            -o -name settings.gradle.kts \
-          \) -print -quit)
-
-          if [ -z "$SETTINGS_FILE" ]; then
-            echo "ERROR: settings.gradle not found"
-            exit 1
-          fi
-
-          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
           PROPERTIES_FILE="$PROJECT_DIR/gradle.properties"
 
           touch "$PROPERTIES_FILE"
@@ -65,31 +82,41 @@ jobs:
           if grep -q '^[[:space:]]*android.useAndroidX[[:space:]]*=' "$PROPERTIES_FILE"; then
             sed -i 's/^[[:space:]]*android\.useAndroidX[[:space:]]*=.*/android.useAndroidX=true/' "$PROPERTIES_FILE"
           else
-            echo 'android.useAndroidX=true' >> "$PROPERTIES_FILE"
+            echo "android.useAndroidX=true" >> "$PROPERTIES_FILE"
           fi
 
-          echo "AndroidX enabled in $PROPERTIES_FILE"
-          cat "$PROPERTIES_FILE"
+          echo "AndroidX enabled."
 
       - name: Build APK
         run: |
           set -e
 
-          SETTINGS_FILE=$(find project -type f \( \
-            -name settings.gradle \
-            -o -name settings.gradle.kts \
-          \) -print -quit)
-
-          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
-
           echo "Building project in: $PROJECT_DIR"
 
-          gradle -p "$PROJECT_DIR" --no-daemon assembleDebug
+          gradle -p "$PROJECT_DIR" \
+            --no-daemon \
+            --stacktrace \
+            clean assembleDebug
+
+      - name: Verify APK
+        run: |
+          set -e
+
+          APK_FILE=$(find "$PROJECT_DIR" -type f \
+            -path "*/build/outputs/apk/debug/*.apk" \
+            -print -quit)
+
+          if [ -z "$APK_FILE" ]; then
+            echo "ERROR: APK was not generated."
+            exit 1
+          fi
+
+          echo "APK successfully generated:"
+          echo "$APK_FILE"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: GhestYar-APK
-          path: project/**/app/build/outputs/apk/debug/*.apk
+          path: "**/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
-          

@@ -16,20 +16,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select and extract newest project source
+      - name: Select and extract current source (v3.0 or newer)
         shell: bash
         run: |
           set -euo pipefail
 
           mapfile -t ZIP_FILES < <(find . -maxdepth 1 -type f -name 'GhestYar-v*-source.zip' -print | sort -V)
           if [ "${#ZIP_FILES[@]}" -eq 0 ]; then
-            echo "::error::No source archive found. Expected GhestYar-v*-source.zip in repository root."
+            echo "::error::No source archive found. Upload GhestYar-v3.0-source.zip to the repository root."
             exit 1
           fi
 
           ZIP_FILE="${ZIP_FILES[-1]}"
           VERSION="${ZIP_FILE#./GhestYar-v}"
           VERSION="${VERSION%-source.zip}"
+
+          if [ "$(printf '%s\n' "3.0" "$VERSION" | sort -V | head -n1)" != "3.0" ]; then
+            echo "::error::Only old source archives were found (latest: v$VERSION). Upload GhestYar-v3.0-source.zip before building. Refusing to build an older version."
+            exit 1
+          fi
+
           echo "Selected source archive: $ZIP_FILE (version $VERSION)"
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
 

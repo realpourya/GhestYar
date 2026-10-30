@@ -59,21 +59,22 @@ jobs:
           set -euo pipefail
           python3 - "$PROJECT_DIR/app/src/main/java/com/pourya/ghestyar/MainActivity.java" <<'PY'
           from pathlib import Path
+          import re
           import sys
 
           path = Path(sys.argv[1])
           source = path.read_text(encoding="utf-8")
-          broken = 'x.name + "' + chr(10) + '" + (isPaid ?'
-          fixed = 'x.name + "\\n" + (isPaid ?'
+          pattern = r'"[ \\t]*\\n[ \\t]*"\\s*\\+\\s*\\(isPaid\\s*\\?'
+          fixed, count = re.subn(pattern, r'"\\n" + (isPaid ?', source, count=1)
 
-          if broken in source:
-              source = source.replace(broken, fixed, 1)
-              path.write_text(source, encoding="utf-8")
-              print("Fixed malformed Java newline in MainActivity.java")
-          elif fixed in source:
-              print("Java newline is already valid; no patch needed")
+          if count:
+              path.write_text(fixed, encoding="utf-8")
+              print("Fixed malformed Java newline before installment paid/unpaid status.")
           else:
-              raise SystemExit("Expected malformed/valid installment status text was not found; refusing to continue.")
+              print("No matching malformed newline found; continuing to compiler diagnostics.")
+              for number, line in enumerate(source.splitlines(), 1):
+                  if "isPaid" in line or "پرداخت‌شده" in line or "پرداخت نشده" in line:
+                      print(f"{number}: {line}")
           PY
 
       - name: Setup Java

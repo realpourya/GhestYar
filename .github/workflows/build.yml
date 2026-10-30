@@ -22,7 +22,7 @@ jobs:
         run: |
           set -e
 
-          ZIP_FILE="GhestYar-v2.5-rial-overdue-reminder.zip"
+          ZIP_FILE="GhestYar-v2.5-rial-overdue-source.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ERROR: Project ZIP not found: $ZIP_FILE"

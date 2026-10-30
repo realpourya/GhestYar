@@ -131,7 +131,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GhestYar-v3.2-source
-          path: release/GhestYar-v3.1-source.zip
+          path: release/GhestYar-v3.2-source.zip
           if-no-files-found: error
 
       - name: Upload APK

@@ -59,22 +59,29 @@ jobs:
           set -euo pipefail
           python3 - "$PROJECT_DIR/app/src/main/java/com/pourya/ghestyar/MainActivity.java" <<'PY'
           from pathlib import Path
-          import re
           import sys
 
           path = Path(sys.argv[1])
           source = path.read_text(encoding="utf-8")
-          pattern = r'"[ \\t]*\\n[ \\t]*"\\s*\\+\\s*\\(isPaid\\s*\\?'
-          fixed, count = re.subn(pattern, r'"\\n" + (isPaid ?', source, count=1)
 
-          if count:
-              path.write_text(fixed, encoding="utf-8")
-              print("Fixed malformed Java newline before installment paid/unpaid status.")
+          # The uploaded v3 source accidentally contains a real line break
+          # between two Java quotes in the installment status TextView.
+          broken = '"' + chr(10) + '" + (isPaid ?'
+          fixed = '"\\n" + (isPaid ?'
+
+          if broken in source:
+              source = source.replace(broken, fixed, 1)
+              path.write_text(source, encoding="utf-8")
+              print("SUCCESS: repaired malformed Java string literal.")
+          elif fixed in source:
+              print("SUCCESS: Java string literal is already valid.")
           else:
-              print("No matching malformed newline found; continuing to compiler diagnostics.")
-              for number, line in enumerate(source.splitlines(), 1):
-                  if "isPaid" in line or "پرداخت‌شده" in line or "پرداخت نشده" in line:
-                      print(f"{number}: {line}")
+              marker = "isPaid ?"
+              pos = source.find(marker)
+              if pos >= 0:
+                  print("Installment status source context:")
+                  print(repr(source[max(0, pos-100):pos+100]))
+              raise SystemExit("Could not locate expected installment status string; stopping with diagnostic.")
           PY
 
       - name: Setup Java

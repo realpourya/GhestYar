@@ -16,10 +16,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract latest project source
+      - name: Extract v2.8 project source
         run: |
           set -e
-          ZIP_FILE="GhestYar-v2.7-source.zip"
+          ZIP_FILE="GhestYar-v2.8-source.zip"
           test -f "$ZIP_FILE"
           mkdir -p project
           unzip -q "$ZIP_FILE" -d project
@@ -27,75 +27,6 @@ jobs:
           test -n "$SETTINGS_FILE"
           PROJECT_DIR=$(dirname "$SETTINGS_FILE")
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
-      - name: Apply v2.8 totals display update
-        run: |
-          set -e
-          python3 - <<'PY'
-          from pathlib import Path
-          import os
-          root = Path(os.environ["PROJECT_DIR"])
-          main = next(root.rglob("MainActivity.java"))
-          s = main.read_text(encoding="utf-8")
-          old_height = "root.addView(summaryBox, new LinearLayout.LayoutParams(-1, dp(136)));"
-          new_height = "root.addView(summaryBox, new LinearLayout.LayoutParams(-1, dp(150)));"
-          if old_height in s:
-              s = s.replace(old_height, new_height, 1)
-          old = '''        LinearLayout amountsRow = new LinearLayout(this);
-          amountsRow.setOrientation(LinearLayout.HORIZONTAL);
-          amountsRow.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-          amountsRow.setGravity(Gravity.CENTER_VERTICAL);
-          amountsRow.setPadding(0, dp(5), 0, 0);
-
-          TextView paidTotal = t("پرداخت‌شده: " + formatTotalAmount(paidAmount), 11, Color.rgb(35, 135, 75));
-          paidTotal.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-          paidTotal.setSingleLine(true);
-          paidTotal.setEllipsize(android.text.TextUtils.TruncateAt.END);
-
-          TextView unpaidTotal = t("پرداخت‌نشده: " + formatTotalAmount(unpaidAmount), 11, Color.rgb(190, 45, 55));
-          unpaidTotal.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-          unpaidTotal.setSingleLine(true);
-          unpaidTotal.setEllipsize(android.text.TextUtils.TruncateAt.END);
-
-          amountsRow.addView(paidTotal, new LinearLayout.LayoutParams(0, dp(28), 1));
-          amountsRow.addView(unpaidTotal, new LinearLayout.LayoutParams(0, dp(28), 1));
-          summaryBox.addView(amountsRow, new LinearLayout.LayoutParams(-1, dp(30)));'''
-          new = '''        // Display both totals on separate lines for readability on narrow screens.
-          LinearLayout amountsBox = new LinearLayout(this);
-          amountsBox.setOrientation(LinearLayout.VERTICAL);
-          amountsBox.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-          amountsBox.setGravity(Gravity.CENTER_VERTICAL);
-          amountsBox.setPadding(0, dp(3), 0, 0);
-
-          TextView paidTotal = t("جمع مبلغ اقساط پرداخت‌شده:  " + formatTotalAmount(paidAmount),
-                  12, Color.rgb(35, 135, 75));
-          paidTotal.setTypeface(null, android.graphics.Typeface.BOLD);
-          paidTotal.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-          paidTotal.setSingleLine(true);
-          paidTotal.setEllipsize(android.text.TextUtils.TruncateAt.END);
-
-          TextView unpaidTotal = t("جمع مبلغ اقساط پرداخت‌نشده:  " + formatTotalAmount(unpaidAmount),
-                  12, Color.rgb(190, 45, 55));
-          unpaidTotal.setTypeface(null, android.graphics.Typeface.BOLD);
-          unpaidTotal.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-          unpaidTotal.setSingleLine(true);
-          unpaidTotal.setEllipsize(android.text.TextUtils.TruncateAt.END);
-
-          amountsBox.addView(paidTotal, new LinearLayout.LayoutParams(-1, dp(25)));
-          amountsBox.addView(unpaidTotal, new LinearLayout.LayoutParams(-1, dp(25)));
-          summaryBox.addView(amountsBox, new LinearLayout.LayoutParams(-1, dp(55)));'''
-          if old in s:
-              s = s.replace(old, new, 1)
-          elif 'جمع مبلغ اقساط پرداخت‌شده:' not in s:
-              raise SystemExit("Could not find expected totals layout in MainActivity.java")
-          main.write_text(s, encoding="utf-8")
-          gradle = next(root.rglob("app/build.gradle"))
-          g = gradle.read_text(encoding="utf-8")
-          import re
-          g = re.sub(r"versionCode\\s+\\d+", "versionCode 18", g)
-          g = re.sub(r"versionName\\s+'[^']+'", "versionName '2.8'", g)
-          gradle.write_text(g, encoding="utf-8")
-          print("Applied v2.8 totals display and version metadata.")
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -107,17 +38,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
-
-      - name: Enable AndroidX
-        run: |
-          set -e
-          PROPERTIES_FILE="$PROJECT_DIR/gradle.properties"
-          touch "$PROPERTIES_FILE"
-          if grep -q '^[[:space:]]*android.useAndroidX[[:space:]]*=' "$PROPERTIES_FILE"; then
-            sed -i 's/^[[:space:]]*android\.useAndroidX[[:space:]]*=.*/android.useAndroidX=true/' "$PROPERTIES_FILE"
-          else
-            echo "android.useAndroidX=true" >> "$PROPERTIES_FILE"
-          fi
 
       - name: Build APK
         run: |

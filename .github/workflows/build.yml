@@ -20,6 +20,12 @@ jobs:
           mkdir -p project
           unzip -q GhestYar-v2.5-rial-overdue-reminder.zip -d project
 
+          # Fix reminder method calls to match the source method signature.
+          MAIN_FILE=$(find project -name MainActivity.java -print -quit)
+          sed -i 's/scheduleReminder(am,x,due,false,false,year,month,x.day);/scheduleReminder(am,x,due,false,year,month,x.day);/' "$MAIN_FILE"
+          sed -i 's/scheduleReminder(am,x,dayBefore,true,false,year,month,x.day);/scheduleReminder(am,x,dayBefore,true,year,month,x.day);/' "$MAIN_FILE"
+          sed -i 's/scheduleReminder(am,x,overdue,false,true,year,month,x.day);/scheduleReminder(am,x,overdue,false,year,month,x.day);/' "$MAIN_FILE"
+
           echo "=== Searching for Gradle project ==="
           find project -type f \( \
             -name settings.gradle \

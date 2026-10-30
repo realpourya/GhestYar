@@ -16,17 +16,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract v2.8 project source
+      - name: Select and extract newest project source
+        shell: bash
         run: |
-          set -e
-          ZIP_FILE="GhestYar-v2.8-source.zip"
-          test -f "$ZIP_FILE"
+          set -euo pipefail
+
+          mapfile -t ZIP_FILES < <(find . -maxdepth 1 -type f -name 'GhestYar-v*-source.zip' -print | sort -V)
+          if [ "${#ZIP_FILES[@]}" -eq 0 ]; then
+            echo "::error::No source archive found. Expected GhestYar-v*-source.zip in repository root."
+            exit 1
+          fi
+
+          ZIP_FILE="${ZIP_FILES[-1]}"
+          VERSION="${ZIP_FILE#./GhestYar-v}"
+          VERSION="${VERSION%-source.zip}"
+          echo "Selected source archive: $ZIP_FILE (version $VERSION)"
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+
           mkdir -p project
           unzip -q "$ZIP_FILE" -d project
-          SETTINGS_FILE=$(find project -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -print -quit)
-          test -n "$SETTINGS_FILE"
-          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+
+          mapfile -t SETTINGS_FILES < <(find project -type f \( -name 'settings.gradle' -o -name 'settings.gradle.kts' \) -print)
+          if [ "${#SETTINGS_FILES[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one Gradle settings file; found ${#SETTINGS_FILES[@]}."
+            printf '%s\n' "${SETTINGS_FILES[@]}"
+            exit 1
+          fi
+
+          PROJECT_DIR="$(dirname "${SETTINGS_FILES[0]}")"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Building project directory: $PROJECT_DIR"
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -41,19 +60,22 @@ jobs:
 
       - name: Build APK
         run: |
-          set -e
+          set -euo pipefail
           gradle -p "$PROJECT_DIR" --no-daemon --stacktrace clean assembleDebug
 
       - name: Verify APK
         run: |
-          set -e
-          APK_FILE=$(find "$PROJECT_DIR" -type f -path "*/build/outputs/apk/debug/*.apk" -print -quit)
-          test -n "$APK_FILE"
-          echo "APK generated: $APK_FILE"
+          set -euo pipefail
+          mapfile -t APK_FILES < <(find "$PROJECT_DIR" -type f -path '*/build/outputs/apk/debug/*.apk' -print)
+          if [ "${#APK_FILES[@]}" -eq 0 ]; then
+            echo "::error::Build completed but no debug APK was found."
+            exit 1
+          fi
+          printf 'Generated APK: %s\n' "${APK_FILES[@]}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GhestYar-v2.8-APK
-          path: "**/build/outputs/apk/debug/*.apk"
+          name: GhestYar-v${{ env.APP_VERSION }}-APK
+          path: "${{ env.PROJECT_DIR }}/**/build/outputs/apk/debug/*.apk"
           if-no-files-found: error

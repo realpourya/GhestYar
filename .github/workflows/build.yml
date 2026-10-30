@@ -25,6 +25,7 @@ jobs:
           sed -i 's/scheduleReminder(am,x,due,false,false,year,month,x.day);/scheduleReminder(am,x,due,false,year,month,x.day);/' "$MAIN_FILE"
           sed -i 's/scheduleReminder(am,x,dayBefore,true,false,year,month,x.day);/scheduleReminder(am,x,dayBefore,true,year,month,x.day);/' "$MAIN_FILE"
           sed -i 's/scheduleReminder(am,x,overdue,false,true,year,month,x.day);/scheduleReminder(am,x,overdue,false,year,month,x.day);/' "$MAIN_FILE"
+          sed -i 's/reminderRequestCode(x,dayBefore,overdue)/reminderRequestCode(x,dayBefore)/' "$MAIN_FILE"
 
           echo "=== Searching for Gradle project ==="
           find project -type f \( \

@@ -78,6 +78,14 @@ jobs:
               print("No quote-newline-quote sequence found; source left unchanged.")
           PY
 
+      - name: Apply v3.1 calendar redesign and long-press editing
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 patches/v3.1/apply_patch.py "$PROJECT_DIR"
+          echo "APP_VERSION=3.1" >> "$GITHUB_ENV"
+          grep -n "versionCode 21; versionName '3.1'" "$PROJECT_DIR/app/build.gradle"
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -103,6 +111,20 @@ jobs:
             exit 1
           fi
           printf 'Generated APK: %s\n' "${APK_FILES[@]}"
+
+      - name: Package updated v3.1 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/release"
+          (cd "$PROJECT_DIR" && zip -qr "$GITHUB_WORKSPACE/release/GhestYar-v3.1-source.zip" . -x '**/build/**' '**/.gradle/**')
+
+      - name: Upload updated source
+        uses: actions/upload-artifact@v4
+        with:
+          name: GhestYar-v3.1-source
+          path: release/GhestYar-v3.1-source.zip
+          if-no-files-found: error
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

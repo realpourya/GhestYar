@@ -94,6 +94,14 @@ jobs:
           echo "APP_VERSION=3.2" >> "$GITHUB_ENV"
           grep -n "versionCode 22; versionName '3.2'" "$PROJECT_DIR/app/build.gradle"
 
+      - name: Apply v3.3 three-stage installment reminders
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 patches/v3.3/apply_patch.py "$PROJECT_DIR"
+          echo "APP_VERSION=3.3" >> "$GITHUB_ENV"
+          grep -n "versionCode 23; versionName '3.3'" "$PROJECT_DIR/app/build.gradle"
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -120,17 +128,17 @@ jobs:
           fi
           printf 'Generated APK: %s\n' "${APK_FILES[@]}"
 
-      - name: Package updated v3.2 source
+      - name: Package updated v3.3 source
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/release"
-          (cd "$PROJECT_DIR" && zip -qr "$GITHUB_WORKSPACE/release/GhestYar-v3.2-source.zip" . -x '**/build/**' '**/.gradle/**')
+          (cd "$PROJECT_DIR" && zip -qr "$GITHUB_WORKSPACE/release/GhestYar-v3.3-source.zip" . -x '**/build/**' '**/.gradle/**')
 
-      - name: Upload updated source v3.2
+      - name: Upload updated source v3.3
         uses: actions/upload-artifact@v4
         with:
-          name: GhestYar-v3.2-source
+          name: GhestYar-v3.3-source
           path: release/GhestYar-v3.2-source.zip
           if-no-files-found: error
 
